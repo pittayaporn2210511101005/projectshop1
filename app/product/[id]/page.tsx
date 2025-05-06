@@ -57,6 +57,8 @@ const outfitsData: Outfit[] = [
             "https://via.placeholder.com/600/999999/FFFFFF?Text=Image+3_2",
         ],
     }
+
+
 ];
 
 export default function ProductDetailPage() {

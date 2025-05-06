@@ -34,6 +34,7 @@ const ProfilePage: React.FC = () => {
         }
     }, []);
 
+
     if (loading) return <div className="text-center py-10">กำลังโหลดข้อมูล...</div>; // จะแสดงข้อความระหว่างโหลดข้อมูล
     if (!user) return <div className="text-center py-10 text-red-600">ไม่พบข้อมูลผู้ใช้งาน</div>; // ถ้าไม่มีข้อมูล
 
