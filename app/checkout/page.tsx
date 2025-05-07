@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
 export interface Outfit {
   id: string;
@@ -17,8 +17,6 @@ export interface Outfit {
 
 interface CartItem extends Outfit {
   quantity: number;
-  rentalStartDate?: string;  // เพิ่มวันที่เช่า
-  rentalEndDate?: string;    // เพิ่มวันที่คืน
 }
 
 export default function CheckoutPage() {
@@ -108,9 +106,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // บันทึกสถานะการเช่า
-    localStorage.setItem('rentalStatus', 'กำลังเช่า');
-
     console.log("ข้อมูลจัดส่ง:", shippingInfo);
     console.log("สินค้าในตะกร้า:", cartItems);
     console.log("ยอดรวม:", totalPrice);
@@ -118,6 +113,7 @@ export default function CheckoutPage() {
 
     alert("ดำเนินการสั่งซื้อและอัปโหลดหลักฐานการชำระเงินแล้ว! (ขั้นตอนต่อไปคือการส่งข้อมูลนี้ไปยัง Backend)");
 
+    // 👇 กลับไปยังหน้าหลักหลังจากยืนยันการสั่งซื้อ
     router.push('/');
   };
 
@@ -159,19 +155,6 @@ export default function CheckoutPage() {
             <div className="text-right font-semibold mt-2">ยอดรวม: ฿ {totalPrice}</div>
           </section>
 
-          {/* 🔸 Rental Information (วันที่เช่า และ วันที่คืน) */}
-          <section className="mb-6 p-4 border border-pink-200 rounded-xl bg-pink-50 shadow-sm">
-            <h3 className="text-lg font-semibold mb-3 text-pink-700">ข้อมูลการเช่า</h3>
-            {cartItems.map(item => (
-                <div key={item.id} className="flex justify-between py-2 text-gray-800">
-                  <div>
-                    <p className="text-sm">วันที่เช่า: {item.rentalStartDate || "ยังไม่ระบุ"}</p>
-                    <p className="text-sm">วันที่คืน: {item.rentalEndDate || "ยังไม่ระบุ"}</p>
-                  </div>
-                </div>
-            ))}
-          </section>
-
           {/* 🔸 Shipping Info */}
           <section className="mb-6 p-4 border border-pink-200 rounded-xl bg-pink-50 shadow-sm">
             <h3 className="text-lg font-semibold mb-3 text-pink-700">ข้อมูลการจัดส่ง</h3>
@@ -192,17 +175,19 @@ export default function CheckoutPage() {
             </div>
           </section>
 
-          {/* 🔸 Admin QR Code */}
+          {/* 🔸 Admin QR Code (ส่วนที่แสดงรูปภาพ) */}
           <section className="mb-6 p-4 border border-pink-200 rounded-xl bg-pink-50 shadow-sm">
             <h3 className="text-lg font-semibold mb-3 text-pink-700">QR Code ชำระเงิน (จากร้านค้า)</h3>
+            {/* แสดงรูป QR Code จากไฟล์โดยตรง */}
             <div className="mt-3 text-center">
+              {/* Path นี้จะทำงานได้หลังจากย้ายโฟลเดอร์ imge ไปไว้ใน public แล้ว */}
               <img
-                  src="/imge/qr-code-generated-7.jpg"
+                  src="/imge/qr-code-generated-7.jpg" // <-- Path นี้ถูกต้องแล้ว เมื่อ imge อยู่ใน public
                   alt="QR จากร้าน"
                   className="max-w-full rounded-md shadow-sm inline-block transition-transform hover:scale-105 duration-200"
               />
             </div>
-            <p className="text-gray-600 text-xs mt-2 text-center">สแกน QR Code นี้เพืำระเงิน</p>
+            <p className="text-gray-600 text-xs mt-2 text-center">สแกน QR Code นี้เพื่อชำระเงิน</p>
           </section>
 
           {/* 🔸 Upload หลักฐานการชำระเงิน */}
@@ -233,4 +218,5 @@ export default function CheckoutPage() {
   );
 }
 
-const inputStyle = "w-full p-3 bg-pink-50 border border-pink-300 rounded-xl shadow-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-500";
+const inputStyle =
+    "shadow appearance-none border border-pink-300 rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400";

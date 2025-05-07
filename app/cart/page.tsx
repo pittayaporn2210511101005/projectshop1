@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { FiTrash, FiPlus, FiMinus } from "react-icons/fi";
 
 interface Outfit {
@@ -29,8 +30,8 @@ const getCartItemsFromLocalStorage = (): CartItem[] => {
     try {
         const storedCartItemsWithDetails = localStorage.getItem("cartItemsWithDetails");
         if (storedCartItemsWithDetails) {
-            const parsedItems: Record<string, CartItem> = JSON.parse(storedCartItemsWithDetails);
-            return Object.values(parsedItems).map((item) => ({
+            const parsedItems = JSON.parse(storedCartItemsWithDetails);
+            return Object.values(parsedItems).map((item: any) => ({
                 outfit: item.outfit,
                 quantity: item.quantity,
                 rentDate: null,
@@ -50,28 +51,26 @@ const getCartItemsFromLocalStorage = (): CartItem[] => {
 
 const saveCartItemsToLocalStorage = (items: CartItem[]) => {
     try {
-        const dataToStore: Record<string, Omit<CartItem, 'rentDate' | 'returnDate' | 'isAvailable'>> = items.reduce(
-            (acc, item) => {
-                const key = `${item.outfit.id}-${item.size}-${item.color}`;
-                acc[key] = {
-                    outfit: item.outfit,
-                    quantity: item.quantity,
-                    frequently: item.frequently || 0,
-                    size: item.size,
-                    color: item.color,
-                };
-                return acc;
-            },
-            {} as Record<string, Omit<CartItem, 'rentDate' | 'returnDate' | 'isAvailable'>>
+        localStorage.setItem(
+            "cartItemsWithDetails",
+            JSON.stringify(
+                items.reduce((acc: any, item) => {
+                    const key = `${item.outfit.id}-${item.size}-${item.color}`;
+                    acc[key] = {
+                        outfit: item.outfit,
+                        quantity: item.quantity,
+                        frequently: item.frequently || 0,
+                        size: item.size,
+                        color: item.color,
+                    };
+                    return acc;
+                }, {})
+            )
         );
-        localStorage.setItem("cartItemsWithDetails", JSON.stringify(dataToStore));
     } catch (error) {
         console.error("Error saving cart items to local storage:", error);
     }
 };
-
-// ส่วนอื่นๆ ของ CartPage เหมือนเดิม
-
 
 export default function CartPage() {
     const [cartItems, setCartItems] = useState<CartItem[]>(getCartItemsFromLocalStorage());
@@ -247,21 +246,11 @@ export default function CartPage() {
                         )}
                     </div>
                     {allAvailable && cartItems.length > 0 ? (
-                        <Link
-                            href={{
-                                pathname: '/checkout',
-                                query: {
-                                    cartItems: JSON.stringify(cartItems), // ส่งข้อมูลตะกร้า
-                                    rentDate: globalRentDate,               // ส่งวันที่เช่า
-                                    returnDate: globalReturnDate           // ส่งวันที่คืน
-                                },
-                            }}
-                        >
+                        <Link href="/checkout">
                             <button className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 transition shadow-md">
                                 ไปยังหน้าชำระเงิน
                             </button>
                         </Link>
-
                     ) : (
                         <button
                             onClick={handleCheckAvailability}
@@ -271,7 +260,6 @@ export default function CartPage() {
                             {isCheckingAvailability ? "กำลังตรวจสอบ..." : "ตรวจสอบวันว่าง"}
                         </button>
                     )}
-
                 </div>
 
                 <div className="mt-4 text-center">

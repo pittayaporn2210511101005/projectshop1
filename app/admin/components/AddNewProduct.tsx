@@ -1,286 +1,177 @@
-// app/admin/components/AddNewProduct.tsx
-import React, { useState, useEffect } from 'react';
-import { FiChevronDown, FiChevronUp, FiPlus, FiMinus } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
-export interface NewProduct {
+interface Dress {
   id?: string;
-  images: File[];
   name: string;
   brand: string;
-  price: number | null;
-  sizes: string[];
-  colors: string[];
-  status?: "ใหม่" | "ลดราคา";
+  price: number;
+  status: string;
+  size: string;
+  color: string;
+  image_url?: string;
+  created_at?: string;
 }
 
-interface AddNewProductProps {
-  onProductAdded: (newProduct: Omit<NewProduct, 'id'>) => void;
-  onProductUpdated?: (updatedProduct: NewProduct) => void;
-  existingProduct?: NewProduct;
-}
-
-const availableSizes = ["XS", "S", "M", "L", "XL"];
-
-const AddNewProduct: React.FC<AddNewProductProps> = ({ onProductAdded, onProductUpdated, existingProduct }) => {
-  const [newProduct, setNewProduct] = useState<NewProduct>({
-    id: existingProduct?.id,
-    images: existingProduct?.images ? [] : [],
-    name: existingProduct?.name || '',
-    brand: existingProduct?.brand || '',
-    price: existingProduct?.price || null,
-    sizes: existingProduct?.sizes || ['S'],
-    colors: existingProduct?.colors || ['#000000'],
-    status: existingProduct?.status || 'ใหม่',
+export default function AddDress() {
+  const [formData, setFormData] = useState<Dress>({
+    name: '',
+    brand: '',
+    price: 0,
+    status: '',
+    size: '',
+    color: '',
+    image_url: '',
   });
 
-  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [dresses, setDresses] = useState<Dress[]>([]);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (existingProduct) {
-      setNewProduct({
-        id: existingProduct.id,
-        images: [], // รีเซ็ต images เมื่อแก้ไข
-        name: existingProduct.name,
-        brand: existingProduct.brand,
-        price: existingProduct.price,
-        sizes: existingProduct.sizes,
-        colors: existingProduct.colors,
-        status: existingProduct.status,
-      });
-      setIsFormVisible(true);
-    } else {
-      setNewProduct({ images: [], name: '', brand: '', price: null, sizes: ['S'], colors: ['#000000'], status: 'ใหม่' });
-      setIsFormVisible(false);
-    }
-  }, [existingProduct]);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = event.target;
-    setNewProduct(prevProduct => ({
-      ...prevProduct,
-      [name]: value,
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>, field: 'size' | 'color') => {
+    const value = e.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
     }));
   };
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      setNewProduct(prevProduct => ({
-        ...prevProduct,
-        images: [...prevProduct.images, ...Array.from(files)],
-      }));
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({ ...prev, image_url: reader.result as string }));
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const formData = new FormData();
-
-    // เพิ่มข้อมูลสินค้าใน FormData
-    formData.append('name', newProduct.name);
-    formData.append('brand', newProduct.brand);
-    formData.append('price', String(newProduct.price));
-    formData.append('status', newProduct.status || 'ใหม่');
-    formData.append('sizes', JSON.stringify(newProduct.sizes));
-    formData.append('colors', JSON.stringify(newProduct.colors));
-
-    // เพิ่มไฟล์ภาพใน FormData
-    newProduct.images.forEach((image, index) => {
-      formData.append(`images[${index}]`, image);
-    });
-
-    let response;
-    if (existingProduct?.id) {
-      // การอัปเดตสินค้า (PUT request)
-      response = await fetch(`/api/Dress/${existingProduct.id}`, {
-        method: 'PUT', // ใช้ PUT ในการอัปเดต
-        body: formData,
-      });
-      console.log('Response status:', response.status); // ตรวจสอบ status ของ response
-      if (response.ok) {
-        const updatedProduct = await response.json();
-        onProductUpdated?.(updatedProduct);
-      } else {
-        console.error("Error updating product");
-      }
-    } else {
-      // การเพิ่มสินค้าใหม่ (POST request)
-      response = await fetch('/api/Dress/save', {
-        method: 'POST',
-        body: formData,
-      });
-      console.log('Response status:', response.status); // ตรวจสอบ status ของ response
-      if (response.ok) {
-        const newProductData = await response.json();
-        onProductAdded(newProductData);
-      } else {
-        console.error("Error adding product");
-      }
-    }
-
-    // รีเซ็ตฟอร์มหลังจากส่งข้อมูล
-    setNewProduct({ images: [], name: '', brand: '', price: null, sizes: ['S'], colors: ['#000000'], status: 'ใหม่' });
-    setIsFormVisible(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload: Dress = {
+      ...formData,
+      price: parseFloat(formData.price.toString()),
+    };
+    await axios.post('http://localhost:8081/api/dress/save', payload);
+    setFormData({ name: '', brand: '', price: 0, status: '', size: '', color: '', image_url: '' });
+    setImagePreview(null);
+    fetchDresses();
   };
 
+  const fetchDresses = async () => {
+    const response = await axios.get('http://localhost:8081/api/dress');
+    setDresses(response.data);
+  };
 
+  const handleDelete = async (id?: string) => {
+    if (!id) return;
+    const confirm = window.confirm('คุณต้องการลบชุดนี้หรือไม่?');
+    if (confirm) {
+      await axios.delete(`http://localhost:8081/api/dress/${id}`);
+      fetchDresses();
+    }
+  };
+
+  useEffect(() => {
+    fetchDresses();
+  }, []);
 
   return (
-      <div className="p-6 rounded-md border border-gray-200">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">{existingProduct ? 'แก้ไขชุดสินค้า' : 'เพิ่มชุดใหม่'}</h2>
-          <button
-              type="button"
-              onClick={() => setIsFormVisible(!isFormVisible)}
-              className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-500 hover:text-gray-700"
-          >
-            {isFormVisible ? <FiChevronUp size={20} /> : <FiChevronDown size={20} />}
+      <div className="space-y-8">
+        {/* ฟอร์มเพิ่มชุด */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium">ชื่อชุด</label>
+            <input type="text" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">ยี่ห้อ</label>
+            <input type="text" name="brand" value={formData.brand} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">ราคา</label>
+            <input type="number" name="price" value={formData.price} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">สถานะ</label>
+            <input type="text" name="status" value={formData.status} onChange={handleChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">ขนาด</label>
+            <select onChange={(e) => handleSelectChange(e, 'size')} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+              <option value="">-- เลือกขนาด --</option>
+              <option value="S">S</option>
+              <option value="M">M</option>
+              <option value="L">L</option>
+            </select>
+            {formData.size && (
+                <div className="mt-2">
+                  <p><strong>ขนาดที่เลือก:</strong> {formData.size}</p>
+                </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">สี</label>
+            <select onChange={(e) => handleSelectChange(e, 'color')} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+              <option value="">-- เลือกสี --</option>
+              <option value="แดง">แดง</option>
+              <option value="น้ำเงิน">น้ำเงิน</option>
+              <option value="เขียว">เขียว</option>
+            </select>
+            {formData.color && (
+                <div className="mt-2">
+                  <p><strong>สีที่เลือก:</strong> {formData.color}</p>
+                </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">รูปภาพ</label>
+            <input type="file" accept="image/*" onChange={handleFileChange} />
+            {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 w-24 h-24 object-cover rounded-md" />}
+          </div>
+
+          <button type="submit" className="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+            บันทึกชุดใหม่
           </button>
-        </div>
+        </form>
 
-        {isFormVisible && (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">ชื่อชุด</label>
-                  <input
-                      type="text"
-                      id="name"
-                      name="name"
-                      value={newProduct.name}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="brand" className="block text-sm font-medium text-gray-700 mb-1">แบรนด์</label>
-                  <input
-                      type="text"
-                      id="brand"
-                      name="brand"
-                      value={newProduct.brand}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">ราคา</label>
-                  <input
-                      type="number"
-                      id="price"
-                      name="price"
-                      value={newProduct.price || ''}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ขนาด</label>
-                {newProduct.sizes.map((size, index) => (
-                    <div key={index} className="flex items-center space-x-2 mb-2">
-                      <select
-                          value={size}
-                          onChange={(e) => {
-                            const newSizes = [...newProduct.sizes];
-                            newSizes[index] = e.target.value;
-                            setNewProduct({ ...newProduct, sizes: newSizes });
-                          }}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                      >
-                        {availableSizes.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                      {newProduct.sizes.length > 1 && (
-                          <button
-                              type="button"
-                              onClick={() => {
-                                const newSizes = [...newProduct.sizes];
-                                newSizes.splice(index, 1);
-                                setNewProduct({ ...newProduct, sizes: newSizes });
-                              }}
-                              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-3 rounded"
-                          >
-                            <FiMinus size={12} />
-                          </button>
+        {/* แสดงรายการชุด */}
+        <div>
+          <h2 className="text-lg font-bold">รายการชุดที่บันทึกแล้ว</h2>
+          {dresses.length === 0 ? (
+              <p className="text-gray-500">ยังไม่มีรายการชุด</p>
+          ) : (
+              <div className="grid gap-4 mt-4">
+                {dresses.map((dress) => (
+                    <div key={dress.id} className="border p-4 rounded shadow-sm">
+                      <p><strong>ชื่อชุด:</strong> {dress.name}</p>
+                      <p><strong>ยี่ห้อ:</strong> {dress.brand}</p>
+                      <p><strong>ราคา:</strong> {dress.price} บาท</p>
+                      <p><strong>สถานะ:</strong> {dress.status}</p>
+                      <p><strong>ขนาด:</strong> {dress.size}</p>
+                      <p><strong>สี:</strong> {dress.color}</p>
+                      {dress.created_at && <p><strong>วันที่เพิ่ม:</strong> {new Date(dress.created_at).toLocaleString()}</p>}
+                      {dress.image_url && (
+                          <img src={dress.image_url} alt={dress.name} className="mt-2 w-24 h-24 object-cover rounded-md" />
                       )}
+                      <button onClick={() => handleDelete(dress.id)} className="mt-2 text-red-500 hover:underline">ลบชุดนี้</button>
                     </div>
                 ))}
-                <button
-                    type="button"
-                    onClick={() => setNewProduct({ ...newProduct, sizes: [...newProduct.sizes, 'S'] })}
-                    className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-3 rounded"
-                >
-                  <FiPlus size={12} /> เพิ่มขนาด
-                </button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">สี</label>
-                <div className="flex items-center space-x-2">
-                  {newProduct.colors.map((color, index) => (
-                      <div key={index} className="flex items-center space-x-1">
-                        <input
-                            type="color"
-                            value={color}
-                            onChange={(e) => {
-                              const newColors = [...newProduct.colors];
-                              newColors[index] = e.target.value;
-                              setNewProduct({ ...newProduct, colors: newColors });
-                            }}
-                            className="rounded-md border-gray-300 shadow-sm"
-                        />
-                        {newProduct.colors.length > 1 && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                  const newColors = [...newProduct.colors];
-                                  newColors.splice(index, 1);
-                                  setNewProduct({ ...newProduct, colors: newColors });
-                                }}
-                                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-3 rounded"
-                            >
-                              <FiMinus size={12} />
-                            </button>
-                        )}
-                      </div>
-                  ))}
-                  <button
-                      type="button"
-                      onClick={() => setNewProduct({ ...newProduct, colors: [...newProduct.colors, '#000000'] })}
-                      className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-3 rounded"
-                  >
-                    <FiPlus size={12} /> เพิ่มสี
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
-                <select
-                    id="status"
-                    name="status"
-                    value={newProduct.status}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                >
-                  <option value="ใหม่">ใหม่</option>
-                  <option value="ลดราคา">ลดราคา</option>
-                </select>
-              </div>
-
-              <button
-                  type="submit"
-                  className="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
-              >
-                {existingProduct ? 'บันทึกการแก้ไข' : 'บันทึกชุดใหม่'}
-              </button>
-            </form>
-        )}
+          )}
+        </div>
       </div>
   );
-};
-
-export default AddNewProduct;
+}
