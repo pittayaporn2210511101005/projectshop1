@@ -1,12 +1,11 @@
-"use client"; // Ensure the client-side execution
+"use client";
 
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import ProductCard from './components/ProductCard';
-import axios from 'axios';
-import { AxiosResponse, AxiosError } from 'axios';
-import AddNewProduct from '@/app/admin/components/AddNewProduct'; // default export
+import axios, { AxiosResponse, AxiosError } from 'axios';
+import AddNewProduct from '@/app/admin/components/AddNewProduct';
 
 export type NewProduct = {
   name: string;
@@ -34,37 +33,15 @@ const getInitialCartItems = (): { [id: string]: { outfit: Outfit; quantity: numb
         ? JSON.parse(localStorage.getItem("cartItemsWithDetails") || '{}')
         : {};
 
-const initialOutfits: Outfit[] = [
-  {
-    id: "1",
-    image: "https://cdn.wconcept.com/products/resize/632x843/migration/i/imgpin.wconceptusa.com/18647a1de60/36fd7/44/s0dWLfWXStJlYnd3qU-kFgkr0HA.png",
-    name: "Casual Holiday Set",
-    brand: "Brand X",
-    price: 990,
-    sizes: ["S", "M"],
-    status: "ใหม่",
-    colors: ["#FADCDC", "#92CEA8", "#E8CFF8"]
-  },
-  {
-    id: "2",
-    image: "https://cdn.wconcept.com/products/resize/632x843/migration/i/imgpin.wconceptusa.com/18647a1de60/26839/49/pE2IPlnI73EQ0pkY9OH1bw9XqM.png",
-    name: "Luxury Work Outfit",
-    brand: "Brand Y",
-    price: 1590,
-    sizes: ["M", "L"],
-    status: "ลดราคา",
-    colors: ["#F898A4"]
-  }
-];
-
 export default function Home() {
   const [cartItems, setCartItems] = useState(getInitialCartItems());
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('');
-  const [filteredOutfits, setFilteredOutfits] = useState<Outfit[]>(initialOutfits);
+  const [allLoadedOutfits, setAllLoadedOutfits] = useState<Outfit[]>([]); // State สำหรับเก็บสินค้าทั้งหมดที่โหลดจาก API
   const [newProducts, setNewProducts] = useState<Outfit[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [filteredOutfits, setFilteredOutfits] = useState<Outfit[]>([]); // State สำหรับเก็บสินค้าที่ถูกกรอง
 
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -74,6 +51,22 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("cartItemsWithDetails", JSON.stringify(cartItems));
   }, [cartItems]);
+
+  // ดึงข้อมูลสินค้าทั้งหมดจาก API เมื่อ component mount
+  useEffect(() => {
+    const fetchInitialOutfits = async () => {
+      try {
+        const response = await axios.get('http://localhost:8081/api/dress');
+        setAllLoadedOutfits(response.data);     // เก็บชุดทั้งหมด
+        setFilteredOutfits(response.data);       // สำหรับการกรอง
+      } catch (error) {
+        console.error('Failed to fetch initial outfits:', error);
+      }
+    };
+
+    fetchInitialOutfits();
+  }, []);
+
 
   const handleAddToCart = (item: { outfit: Outfit; size?: string; color?: string }) => {
     const key = `${item.outfit.id}-${item.size}-${item.color}`;
@@ -112,7 +105,7 @@ export default function Home() {
   };
 
   const filterOutfits = (term: string, brand: string) => {
-    const filtered = initialOutfits.filter(outfit => {
+    const filtered = allLoadedOutfits.filter(outfit => {
       const matchesSearchTerm = outfit.name.toLowerCase().includes(term);
       const matchesBrand = brand ? outfit.brand === brand : true;
       return matchesSearchTerm && matchesBrand;
@@ -136,14 +129,18 @@ export default function Home() {
     axios.post('http://localhost:8081/api/dress/save', newOutfit)
         .then((response: AxiosResponse) => {
           console.log('เพิ่มสินค้าใหม่สำเร็จ', response.data);
+          // หลังจากเพิ่มสินค้าใหม่สำเร็จ ควรดึงข้อมูลทั้งหมดจาก API ใหม่อีกครั้ง
+          fetchInitialOutfits();
         })
         .catch((error: AxiosError) => {
           console.error('การเพิ่มสินค้าใหม่ล้มเหลว', error);
         });
   };
 
-  const allOutfits = [...filteredOutfits, ...newProducts];
+  // รวมสินค้าที่กรองแล้ว และสินค้าใหม่
+  const allOutfitsToDisplay = [...filteredOutfits, ...newProducts];
 
+  let outfit;
   return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-rose-100 py-6">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -186,12 +183,23 @@ export default function Home() {
 
           <h2 className="text-2xl font-semibold text-rose-700 mb-4">Our Outfits</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 mb-8">
-            {allOutfits.map(outfit => <ProductCard key={outfit.id} outfit={outfit} onAddToCart={handleAddToCart} />)}
+            {allOutfitsToDisplay.map(outfit => (
+                <div key={outfit.id} className="relative"> {/* เพิ่ม div container */}
+                  <ProductCard key={outfit.id} outfit={outfit} onAddToCart={handleAddToCart} />
+                  <button
+                      onClick={() => handleAddToCart({ outfit })}
+                      className="absolute bottom-2 left-2 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition text-sm shadow-sm"
+                  >
+                    เพิ่มลงตะกร้า
+                  </button>
+                </div>
+            ))}
           </div>
 
           <div className="flex justify-center mb-8">
             <button className="bg-rose-100 text-rose-700 px-5 py-2 rounded-md hover:bg-rose-200 transition shadow-sm">See More Outfits +</button>
           </div>
+
 
           <div className="relative">
             <Link

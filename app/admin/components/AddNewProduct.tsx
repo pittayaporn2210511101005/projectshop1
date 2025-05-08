@@ -9,7 +9,7 @@ interface Dress {
   status: string;
   size: string;
   color: string;
-  image_url?: string;
+  imageUrl?: string;
   created_at?: string;
 }
 
@@ -21,11 +21,12 @@ export default function AddDress() {
     status: '',
     size: '',
     color: '',
-    image_url: '',
+    imageUrl: '',
   });
 
   const [dresses, setDresses] = useState<Dress[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -45,22 +46,49 @@ export default function AddDress() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData((prev) => ({ ...prev, image_url: reader.result as string }));
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+      setImageFile(file); // เก็บไฟล์สำหรับอัปโหลด
     }
+  };
+
+  // ✅ ฟังก์ชันอัปโหลดภาพขึ้น Cloudinary
+  const uploadImageToServer = async (file: File): Promise<string> => {
+    const data = new FormData();
+    data.append('file', file);
+    data.append('upload_preset', 'PROJCET'); // <-- เปลี่ยนค่าให้ตรงกับ Cloudinary
+    const res = await axios.post('https://api.cloudinary.com/v1_1/\n' +
+        'dp3rmlfap/image/upload', data); // <-- เปลี่ยนค่า YOUR_CLOUD_NAME
+    return res.data.secure_url;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    let imageUrl = formData.imageUrl;
+
+    if (imageFile) {
+      try {
+        imageUrl = await uploadImageToServer(imageFile);
+        console.log("image_url",imageUrl)
+      } catch (error) {
+        console.error("Image upload failed:", error);
+        alert("อัปโหลดรูปภาพไม่สำเร็จ");
+        return;
+      }
+    }
+
     const payload: Dress = {
       ...formData,
       price: parseFloat(formData.price.toString()),
+      imageUrl: imageUrl,
     };
+
     await axios.post('http://localhost:8081/api/dress/save', payload);
-    setFormData({ name: '', brand: '', price: 0, status: '', size: '', color: '', image_url: '' });
+    setFormData({ name: '', brand: '', price: 0, status: '', size: '', color: '', imageUrl: '' });
     setImagePreview(null);
+    setImageFile(null);
     fetchDresses();
   };
 
@@ -114,11 +142,7 @@ export default function AddDress() {
               <option value="M">M</option>
               <option value="L">L</option>
             </select>
-            {formData.size && (
-                <div className="mt-2">
-                  <p><strong>ขนาดที่เลือก:</strong> {formData.size}</p>
-                </div>
-            )}
+            {formData.size && <p className="mt-2"><strong>ขนาดที่เลือก:</strong> {formData.size}</p>}
           </div>
 
           <div>
@@ -129,11 +153,7 @@ export default function AddDress() {
               <option value="น้ำเงิน">น้ำเงิน</option>
               <option value="เขียว">เขียว</option>
             </select>
-            {formData.color && (
-                <div className="mt-2">
-                  <p><strong>สีที่เลือก:</strong> {formData.color}</p>
-                </div>
-            )}
+            {formData.color && <p className="mt-2"><strong>สีที่เลือก:</strong> {formData.color}</p>}
           </div>
 
           <div>
@@ -147,7 +167,7 @@ export default function AddDress() {
           </button>
         </form>
 
-        {/* แสดงรายการชุด */}
+        {/* รายการชุด */}
         <div>
           <h2 className="text-lg font-bold">รายการชุดที่บันทึกแล้ว</h2>
           {dresses.length === 0 ? (
@@ -163,9 +183,7 @@ export default function AddDress() {
                       <p><strong>ขนาด:</strong> {dress.size}</p>
                       <p><strong>สี:</strong> {dress.color}</p>
                       {dress.created_at && <p><strong>วันที่เพิ่ม:</strong> {new Date(dress.created_at).toLocaleString()}</p>}
-                      {dress.image_url && (
-                          <img src={dress.image_url} alt={dress.name} className="mt-2 w-24 h-24 object-cover rounded-md" />
-                      )}
+                      {dress.imageUrl && <img src={dress.imageUrl} alt={dress.name} className="mt-2 w-24 h-24 object-cover rounded-md" />}
                       <button onClick={() => handleDelete(dress.id)} className="mt-2 text-red-500 hover:underline">ลบชุดนี้</button>
                     </div>
                 ))}

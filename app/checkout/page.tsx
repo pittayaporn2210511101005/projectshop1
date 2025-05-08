@@ -144,7 +144,7 @@ export default function CheckoutPage() {
                   <li key={item.id} className="flex justify-between items-center py-2 text-gray-800">
                     <div className="flex items-center">
                       <div className="w-10 h-10 mr-2 overflow-hidden rounded-md shadow-sm">
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={item.image || '/default-image.jpg'} alt={item.name} className="w-full h-full object-cover" />
                       </div>
                       <span>{item.name} x {item.quantity}</span>
                     </div>
@@ -154,6 +154,7 @@ export default function CheckoutPage() {
             </ul>
             <div className="text-right font-semibold mt-2">ยอดรวม: ฿ {totalPrice}</div>
           </section>
+
 
           {/* 🔸 Shipping Info */}
           <section className="mb-6 p-4 border border-pink-200 rounded-xl bg-pink-50 shadow-sm">
